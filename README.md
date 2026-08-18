@@ -14,10 +14,12 @@ The original task specification is in [TASK.md](TASK.md).
    10 files max), sanitizes filenames (no path traversal), and parses each file:
    - [lib/sources/csv.ts](lib/sources/csv.ts) — CSV rows via PapaParse.
    - [lib/sources/text.ts](lib/sources/text.ts) — plain text as a single block.
-2. **Redact** ([lib/redact.ts](lib/redact.ts)) — masks likely PII (emails, SSNs,
-   phone numbers, card numbers, and any field with a sensitive-sounding name)
-   before the data goes any further, whether it's in a flagged field or embedded
-   inside an unrelated one (e.g. a phone number inside a free-text "notes" column).
+2. **Redact** ([lib/redact.ts](lib/redact.ts)) — masks PII matching email, phone,
+   and SSN patterns (plus card-number patterns and any field with a
+   sensitive-sounding name) before the data goes any further, whether it's in a
+   flagged field or embedded inside an unrelated one (e.g. a phone number inside
+   a free-text "notes" column). See [Known limitations](#known-limitations) for
+   what this does and doesn't catch.
 3. **Summarize** ([lib/summarize.ts](lib/summarize.ts)) — a pure function turning
    ingested records into a structured summary (counts, sources, field coverage,
    text excerpts, warnings). No I/O, so it's easy to unit test.
@@ -38,14 +40,22 @@ Defaults (overridable per request) live in environment variables.
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in RESEND_API_KEY and/or DEFAULT_SLACK_WEBHOOK_URL
+cp .env.example .env.local   # then fill in the values below
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000), upload one or more
-`.csv`/`.txt` files, choose a delivery channel, and submit. Delivery outcomes
-and the structured summary (including which fields were redacted) are shown
-in the UI.
+`.csv`/`.txt` files, choose a delivery channel (Email, Slack, or Both), and
+submit. Delivery outcomes and the structured summary (including which fields
+were redacted) are shown in the UI. The email-recipient field's placeholder
+reflects whatever `DEFAULT_SUMMARY_EMAIL_TO` is actually set to in your
+environment, not a hardcoded example.
+
+**Try it yourself:** upload [examples/sample.csv](examples/sample.csv) and
+[examples/sample.txt](examples/sample.txt) through the UI to see extraction
+and redaction in action — both files contain synthetic PII (fake emails, a
+fake SSN, a fake phone number) specifically to demonstrate the redaction
+step.
 
 ### Testing
 
@@ -57,15 +67,27 @@ npm run build
 
 ## Configuration
 
-See [.env.example](.env.example) for the full list. Nothing is hardcoded in
-source — destinations and credentials are environment-driven:
+Set these in `.env.local` (see [.env.example](.env.example) for the template).
+Nothing is hardcoded in source — destinations and credentials are entirely
+environment-driven, and either channel can be used standalone or together.
+
+**Email delivery** (via [Resend](https://resend.com)):
 
 | Variable | Purpose |
 |---|---|
-| `RESEND_API_KEY` | Resend API key for sending the summary email |
-| `RESEND_FROM_ADDRESS` | Verified "from" address in your Resend account |
-| `DEFAULT_SUMMARY_EMAIL_TO` | Default email recipient if the caller doesn't specify one |
-| `DEFAULT_SLACK_WEBHOOK_URL` | Default webhook URL (Slack incoming webhook or compatible) if the caller doesn't specify one |
+| `RESEND_API_KEY` | Your Resend API key. Without this set, email delivery fails closed with a clear error — it does not silently no-op. |
+| `RESEND_FROM_ADDRESS` | A verified "from" address in your Resend account. |
+| `DEFAULT_SUMMARY_EMAIL_TO` | Default recipient used when the UI's recipient field is left blank. |
+
+**Slack / webhook delivery**:
+
+| Variable | Purpose |
+|---|---|
+| `DEFAULT_SLACK_WEBHOOK_URL` | Default incoming-webhook URL (Slack, or any endpoint that accepts the same JSON shape) used when the UI's webhook field is left blank. Must be HTTPS. |
+
+Both defaults can be overridden per-request from the UI without touching
+environment config — useful for sending a one-off summary somewhere other
+than the configured default.
 
 ## Deploying to Vercel
 
@@ -94,6 +116,17 @@ settings — not in source, not in a committed file.
 - No secrets are committed. `.env.example` documents required variable names
   with empty values only.
 
+## Known limitations
+
+- **PII redaction covers email, phone, and SSN patterns specifically** (plus
+  card-number patterns and fields with sensitive-sounding names like `ssn` or
+  `email`). It is a pattern-based filter, **not a full PII-detection
+  solution** — it has no coverage for unstructured PII such as person names,
+  street addresses as free text, or ID formats outside what it explicitly
+  matches (e.g. non-US phone/ID formats, passport numbers, driver's license
+  numbers). Data containing PII shapes this build doesn't recognize will pass
+  through unredacted.
+
 ## Out of scope for this build
 
 This was built in a single-session timebox as a code test, not a production
@@ -108,10 +141,6 @@ system. Notably absent, and what a next phase would add:
   check inspects the literal hostname in the URL; a hostname that resolves to
   an internal address via DNS would not be caught. A production system should
   resolve the hostname and check the actual IP before connecting.
-- **PII detection is regex/heuristic-based**, tuned for common US-style
-  patterns (email, SSN, phone, card number) and sensitive-sounding field
-  names. It is not a substitute for a dedicated PII-detection library or
-  service, and will both over- and under-redact on data it wasn't tuned for.
 - **Only CSV and plain text sources.** The reader interface is pluggable, but
   no other formats (JSON, XLSX, API pull) are implemented.
 - **No persistence.** Each run is stateless — there's no run history, no
