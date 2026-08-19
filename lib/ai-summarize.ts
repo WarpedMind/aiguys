@@ -60,7 +60,7 @@ export async function generateAiSummary(records: RawRecord[]): Promise<AiSummary
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
     const response = await client.messages.parse({
-      model: "claude-opus-5",
+      model: "claude-sonnet-5",
       max_tokens: 4096,
       system:
         "You summarize already-sanitized data records. The fields you receive have already " +
