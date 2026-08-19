@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildSummary } from "../summarize";
 import type { IngestResult } from "../types";
 
@@ -28,5 +28,43 @@ describe("buildSummary", () => {
     const summary = buildSummary({ records: [], warnings: [] });
     expect(summary.recordCount).toBe(0);
     expect(summary.sources).toEqual([]);
+  });
+
+  it("includes an un-generated aiSummary placeholder by default", () => {
+    const summary = buildSummary({ records: [], warnings: [] });
+    expect(summary.aiSummary.generated).toBe(false);
+  });
+});
+
+describe("buildSummaryWithAi", () => {
+  const originalKey = process.env.ANTHROPIC_API_KEY;
+
+  beforeEach(() => {
+    delete process.env.ANTHROPIC_API_KEY;
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    if (originalKey) process.env.ANTHROPIC_API_KEY = originalKey;
+    else delete process.env.ANTHROPIC_API_KEY;
+    vi.resetModules();
+  });
+
+  it("keeps the rule-based metadata and skips the AI call when no API key is configured", async () => {
+    const { buildSummaryWithAi } = await import("../summarize");
+
+    const ingest: IngestResult = {
+      records: [
+        { sourceFile: "a.csv", sourceType: "csv", index: 0, fields: { first_name: "Alice" } },
+      ],
+      warnings: [],
+    };
+
+    const summary = await buildSummaryWithAi(ingest);
+
+    expect(summary.recordCount).toBe(1);
+    expect(summary.sources).toEqual(["a.csv"]);
+    expect(summary.aiSummary.generated).toBe(false);
+    expect(summary.aiSummary.detail).toMatch(/ANTHROPIC_API_KEY is not configured/i);
   });
 });

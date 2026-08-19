@@ -46,6 +46,34 @@ describe("redactRecordFields", () => {
     expect(cleaned.amount).toBe("150.00");
     expect(redactedFieldNames).toHaveLength(0);
   });
+
+  it("passes first_name, last_name, and subject through untouched while scrubbing email/phone/SSN in the same record", () => {
+    const before = {
+      first_name: "Alice",
+      last_name: "Smith",
+      subject: "Invoice payment",
+      email: "alice@example.com",
+      notes: "Contact 555-123-4567, SSN 123-45-6789 on file",
+    };
+
+    const { cleaned, redactedFieldNames } = redactRecordFields(before);
+
+    // Non-PII fields pass through byte-for-byte.
+    expect(cleaned.first_name).toBe(before.first_name);
+    expect(cleaned.last_name).toBe(before.last_name);
+    expect(cleaned.subject).toBe(before.subject);
+
+    // PII fields/values are scrubbed.
+    expect(cleaned.email).not.toBe(before.email);
+    expect(cleaned.notes).not.toContain("555-123-4567");
+    expect(cleaned.notes).not.toContain("123-45-6789");
+
+    expect(redactedFieldNames).toContain("email");
+    expect(redactedFieldNames).toContain("notes");
+    expect(redactedFieldNames).not.toContain("first_name");
+    expect(redactedFieldNames).not.toContain("last_name");
+    expect(redactedFieldNames).not.toContain("subject");
+  });
 });
 
 describe("redactText", () => {

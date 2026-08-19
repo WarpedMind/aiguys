@@ -158,6 +158,27 @@ export default function UploadForm({ defaultEmailTo }: { defaultEmailTo: string 
               Summary ({result.summary.recordCount} records)
             </h2>
             <p className="text-xs text-zinc-500 mb-2">Run {result.summary.runId}</p>
+            {result.summary.aiSummary.generated ? (
+              <div className="mb-3">
+                <p className="text-sm text-black dark:text-zinc-50 mb-1">
+                  {result.summary.aiSummary.overview}
+                </p>
+                {result.summary.aiSummary.records.length > 0 && (
+                  <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-0.5 mt-1">
+                    {result.summary.aiSummary.records.map((r) => (
+                      <li key={`${r.sourceFile}-${r.index}`}>
+                        <strong>
+                          {r.sourceFile} #{r.index}:
+                        </strong>{" "}
+                        {r.description}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-500 mb-3">{result.summary.aiSummary.detail}</p>
+            )}
             {result.summary.redactedFieldNames.length > 0 && (
               <p className="text-xs text-amber-700 dark:text-amber-400 mb-2">
                 Redacted fields: {result.summary.redactedFieldNames.join(", ")}

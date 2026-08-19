@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestFiles, type InputFile } from "@/lib/ingest";
-import { buildSummary } from "@/lib/summarize";
+import { buildSummaryWithAi } from "@/lib/summarize";
 import { sendEmailSummary } from "@/lib/delivery/email";
 import { sendWebhookSummary } from "@/lib/delivery/webhook";
 import { DEFAULT_EMAIL_TO, DEFAULT_SLACK_WEBHOOK_URL } from "@/lib/config";
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const summary = buildSummary(ingestResult);
+  const summary = await buildSummaryWithAi(ingestResult);
 
   const outcomes: DeliveryOutcome[] = [];
 

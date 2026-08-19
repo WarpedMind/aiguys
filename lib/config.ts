@@ -13,3 +13,5 @@ export const DEFAULT_SLACK_WEBHOOK_URL =
 export const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 export const RESEND_FROM_ADDRESS =
   process.env.RESEND_FROM_ADDRESS || "onboarding@resend.dev";
+
+export const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";

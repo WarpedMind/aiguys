@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { generateAiSummary } from "./ai-summarize";
 import type { IngestResult, StructuredSummary } from "./types";
 
 const MAX_EXCERPT_LENGTH = 280;
@@ -49,5 +50,17 @@ export function buildSummary(ingest: IngestResult): StructuredSummary {
     textExcerpts,
     warnings: warnings.map((w) => `[${w.sourceFile}] ${w.message}`),
     redactedFieldNames: Array.from(redactedFieldNames),
+    aiSummary: { overview: "", records: [], generated: false, detail: "Not requested." },
   };
+}
+
+/**
+ * Builds the rule-based summary (unchanged, still pure) and layers an AI-
+ * generated natural-language summary on top. Only records that have already
+ * been through lib/redact.ts are passed to the AI step — see ai-summarize.ts.
+ */
+export async function buildSummaryWithAi(ingest: IngestResult): Promise<StructuredSummary> {
+  const summary = buildSummary(ingest);
+  const aiSummary = await generateAiSummary(ingest.records);
+  return { ...summary, aiSummary };
 }
